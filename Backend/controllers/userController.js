@@ -7,7 +7,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-//Register
+/* ---------- 1. REGISTER ---------- */
 export const registerUser = async (req, res) => {
     const { username, email, password } = req.body;
 
@@ -60,7 +60,7 @@ export const registerUser = async (req, res) => {
 };
 
 
-// LOGIN
+/* ---------- 2. LOGIN ---------- */
 export const loginUser = async (req, res) => {
     const { email, password } = req.body;
     console.info(`[LOGIN] Intento de acceso para: ${email}`);
@@ -93,7 +93,7 @@ export const loginUser = async (req, res) => {
 };
 
 
-// FORGOT-PASSWORD
+/* ---------- 3. FORGOT PASSWORD ---------- */
 export const forgotPasswordController = async (req, res) => {
     const { email } = req.body;
     console.info(`[FORGOT-PASSWORD] Solicitud para: ${email}`);
@@ -134,7 +134,7 @@ export const forgotPasswordController = async (req, res) => {
     }
 };
 
-// RESET-PASSWORD
+/* ---------- 4. RESET PASSWORD ---------- */
 export const resetPasswordController = async (req, res) => {
     const { code, password } = req.body;
     console.info(`[RESET-PASSWORD] Solicitud con código: ${code}`);
@@ -157,4 +157,95 @@ export const resetPasswordController = async (req, res) => {
         console.error('[RESET-PASSWORD] Error interno:', error);
         res.status(500).json({ message: 'Error al restablecer la contraseña.' });
     }
+};
+
+
+/* ---------- 5. VER PERFIL ---------- */
+export const getProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id)
+      .select('-password -password_history -access_history -is_deleted -old_data');
+
+    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+    return res.json({ user });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ message: 'Error al obtener perfil' });
+  }
+};
+
+/* ---------- 6. EDITAR PERFIL ---------- */
+export const updateProfile = async (req, res) => {
+  try {
+    const {
+      first_name,
+      last_name,
+      phone_number,
+      birthdate,
+      country,
+      bio,
+      address,
+      social_accounts
+    } = req.body;
+
+    const updated = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        first_name,
+        last_name,
+        phone_number,
+        birthdate,
+        country,
+        bio,
+        address,
+        social_accounts
+      },
+      { new: true, runValidators: true }
+    ).select('-password -password_history -access_history -is_deleted -old_data');
+
+    if (!updated) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+    return res.json({ user: updated });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ message: 'Error al actualizar perfil' });
+  }
+};
+
+/* ---------- 7. CAMBIAR CONTRASEÑA ---------- */
+export const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ message: 'Faltan contraseñas' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
+
+    // Verificar contraseña actual
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) return res.status(401).json({ message: 'Contraseña actual incorrecta' });
+
+    // Verificar que no repita contraseñas anteriores
+    const repeated = await Promise.all(
+      user.password_history.map(async (ph) => await bcrypt.compare(newPassword, ph.password))
+    );
+    if (repeated.some(Boolean)) {
+      return res.status(409).json({ message: 'No puedes reutilizar una contraseña anterior' });
+    }
+
+    // Guardar contraseña actual en historial
+    user.password_history.push({ password: user.password, changed_in: new Date() });
+
+    // Actualizar contraseña
+    user.password = await bcrypt.hash(newPassword, 12);
+    await user.save();
+
+    return res.json({ message: 'Contraseña actualizada con éxito' });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ message: 'Error al cambiar contraseña' });
+  }
 };
