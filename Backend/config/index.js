@@ -3,6 +3,11 @@ import cors from 'cors';
 import mongoose from 'mongoose';
 import {config} from 'dotenv';
 
+//Rutas
+import userRoutes  from '../routes/userRoutes.js'
+import transactionRoutes from '../routes/transactionsRoutes.js'
+import budgetRoutes from '../routes/budgetsRoutes.js'
+
 
 
 config({path: './Config/.env'});
@@ -22,6 +27,11 @@ const port = process.env.PORT
 
 
 app.use(express.json());
+
+app.use("/Users", userRoutes)
+app.use("/Transactions", transactionRoutes)
+app.use("/Budgets", budgetRoutes)
+
 
 
 try {

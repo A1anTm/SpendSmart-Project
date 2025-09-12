@@ -72,7 +72,13 @@ const userSchema = new mongoose.Schema({
     old_data:       { 
         type: mongoose.Schema.Types.Mixed, 
         default: null
-    }
+    },
+    alertSettings: {
+    emailAlerts:      { type: Boolean, default: true },
+    weeklyReports:    { type: Boolean, default: false },
+    monthlyReports:   { type: Boolean, default: true }
+    },
+    thresholdEnabled: { type: Boolean, default: true }
 }, { timestamps: { createdAt: 'created_at', updatedAt: 'updated_at' } });
 
 export default mongoose.model('User', userSchema);

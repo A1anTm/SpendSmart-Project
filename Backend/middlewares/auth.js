@@ -51,6 +51,6 @@ export const isAuth = (req, res, next) => {
 export const generateTokenEmail = (userId) => {
     console.info('[generateTokenEmail] Generando token de restablecimiento para userId:', userId);
     const token = jwt.sign({ id: userId }, process.env.PASSWORD, { expiresIn: '10m' });
-    console.info('[generateTokenEmail] Token de restablecimiento generado');
+    console.info('[generateTokenEmail] Token de restablecimiento generado', token);
     return token;
 };
