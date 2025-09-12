@@ -8,6 +8,7 @@ import userRoutes  from '../routes/userRoutes.js'
 import transactionRoutes from '../routes/transactionsRoutes.js'
 import budgetRoutes from '../routes/budgetsRoutes.js'
 import savingsGoalRoutes from '../routes/savingsGoalsRoutes.js'
+import summaryRoutes from '../routes/summaryRoutes.js'
 
 
 
@@ -33,6 +34,7 @@ app.use("/Users", userRoutes)
 app.use("/Transactions", transactionRoutes)
 app.use("/Budgets", budgetRoutes)
 app.use("/SavingsGoals", savingsGoalRoutes)
+app.use("/Summary", summaryRoutes)
 
 
 
