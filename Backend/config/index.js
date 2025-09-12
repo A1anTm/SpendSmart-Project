@@ -7,6 +7,7 @@ import {config} from 'dotenv';
 import userRoutes  from '../routes/userRoutes.js'
 import transactionRoutes from '../routes/transactionsRoutes.js'
 import budgetRoutes from '../routes/budgetsRoutes.js'
+import savingsGoalRoutes from '../routes/savingsGoalsRoutes.js'
 
 
 
@@ -31,6 +32,7 @@ app.use(express.json());
 app.use("/Users", userRoutes)
 app.use("/Transactions", transactionRoutes)
 app.use("/Budgets", budgetRoutes)
+app.use("/SavingsGoals", savingsGoalRoutes)
 
 
 

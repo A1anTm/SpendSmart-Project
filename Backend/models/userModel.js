@@ -72,6 +72,11 @@ const userSchema = new mongoose.Schema({
     old_data:       { 
         type: mongoose.Schema.Types.Mixed, 
         default: null
+    },address: {
+    street:  { type: String, default: null },
+    city:    { type: String, default: null },
+    state:   { type: String, default: null },
+    zip:     { type: String, default: null }
     },
     alertSettings: {
     emailAlerts:      { type: Boolean, default: true },
