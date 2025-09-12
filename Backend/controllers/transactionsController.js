@@ -7,26 +7,39 @@ const toNumber = (decimal128) => parseFloat(decimal128.toString());
 
 /* ---------- 1. CREAR TRANSACCIÓN ---------- */
 export const createTransaction = async (req, res) => {
-try {
+  try {
     const { type, amount, date, category_id, description } = req.body;
-    if (!["ingreso", "gasto"].includes(type))
-    return res.status(400).json({ message: "Tipo debe ser ingreso o gasto" });
+
+    if (!['ingreso', 'gasto'].includes(type))
+      return res.status(400).json({ message: 'Tipo debe ser ingreso o gasto' });
+
+    // Si viene categoría, validar que exista y sea compatible
+    if (category_id) {
+      const cat = await Category.findById(category_id);
+      if (!cat)
+        return res.status(404).json({ message: 'Categoría no encontrada' });
+
+      if (!['ambos', type].includes(cat.appliesTo))
+        return res.status(400).json({
+          message: `La categoría "${cat.name}" no está permitida para ${type}s`
+        });
+    }
 
     const newTx = await Transaction.create({
-    user_id: req.user._id,
-    type,
-    amount,
-    date,
-    category_id: category_id || null,
-    description: description || null,
+      user_id: req.user._id,
+      type,
+      amount,
+      date,
+      category_id: category_id || null,
+      description: description || null
     });
-    return res.status(201).json({ transaction: newTx });
-} catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Error al crear transacción" });
-}
-};
 
+    return res.status(201).json({ transaction: newTx });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Error al crear transacción' });
+  }
+};
 /* ---------- 2. ACTUALIZAR TRANSACCIÓN ---------- */
 export const updateTransaction = async (req, res) => {
 try {

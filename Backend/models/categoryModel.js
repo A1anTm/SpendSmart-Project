@@ -1,17 +1,17 @@
 import mongoose from 'mongoose';
 
 const categorySchema = new mongoose.Schema({
-    name: {
-        type: String,
-        required: true,
-        unique: true,
-        index: true
-    }
-}, { 
-    timestamps: { 
-        createdAt: 'created_at', 
-        updatedAt: 'updated_at' 
-    } 
-});
+  name: {
+    type: String,
+    required: true,
+    unique: true,
+    index: true
+  },
+  appliesTo: {
+    type: String,
+    enum: ['ingreso', 'gasto', 'ambos'],
+    default: 'gasto'
+  }
+}, { timestamps: true });
 
 export default mongoose.model('Category', categorySchema);
