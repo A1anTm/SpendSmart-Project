@@ -9,7 +9,7 @@ const categorySchema = new mongoose.Schema({
   },
   appliesTo: {
     type: String,
-    enum: ['ingreso', 'gasto', 'ambos'],
+    enum: ['ingreso', 'gasto'],
     default: 'gasto'
   }
 }, { timestamps: true });

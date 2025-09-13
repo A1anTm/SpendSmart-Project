@@ -1,16 +1,15 @@
-// routes/budgetRoutes.js
 import express from 'express';
-import * as ctrl from '../controllers/budgetController.js';
+import {createBudget, updateBudget, listBudgets, toggleBudget, deleteBudget, updateAlertSettings} from "../controllers/budgetsController.js";
 import { isAuth } from '../middlewares/auth.js';
 
 const router = express.Router();
 router.use(isAuth);
 
-router.post('/', ctrl.createBudget);                 // agregar
-router.put('/:id', ctrl.updateBudget);               // editar
-router.get('/', ctrl.listBudgets);                   // listar + resumen
-router.patch('/:id/toggle', ctrl.toggleBudget);      // activar/desactivar
-router.delete('/:id', ctrl.deleteBudget);            // eliminar
-router.put('/alerts/config', ctrl.updateAlertSettings); // config notis
+router.post('/', createBudget);                 // agregar
+router.put('/:id', updateBudget);               // editar
+router.get('/', listBudgets);                   // listar + resumen
+router.patch('/:id/toggle', toggleBudget);      // activar/desactivar
+router.delete('/:id', deleteBudget);            // eliminar
+router.put('/alerts/config', updateAlertSettings); // config notis
 
 export default router;

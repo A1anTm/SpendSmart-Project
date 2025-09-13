@@ -1,5 +1,5 @@
-import Transaction from '../models/Transaction.js';
-import SavingsGoal from '../models/SavingsGoal.js';
+import Transaction from '../models/transactionsModel.js';
+import SavingsGoal from '../models/savingsGoalsModel.js';
 import mongoose from 'mongoose';
 
 const toNumber = d => parseFloat(d.toString());
@@ -39,7 +39,7 @@ export const getMonthlySummary = async (req, res) => {
       { $group: { _id: null, total: { $sum: '$amount' } } }
     ]);
     const totalBalance = (totalIncome.length  ? toNumber(totalIncome[0].total)  : 0) -
-                         (totalExpense.length ? toNumber(totalExpense[0].total) : 0);
+                        (totalExpense.length ? toNumber(totalExpense[0].total) : 0);
 
     /* 3.  Gastos por categoría (mes) */
     const byCategory = await Transaction.aggregate([

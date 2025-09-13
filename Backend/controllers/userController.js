@@ -9,7 +9,7 @@ dotenv.config();
 
 /* ---------- 1. REGISTER ---------- */
 export const registerUser = async (req, res) => {
-    const { username, email, password } = req.body;
+    const { full_name, username, email, password } = req.body;
 
     console.info(`[REGISTER] Intentando registrar usuario: ${email}`);
 
@@ -17,37 +17,28 @@ export const registerUser = async (req, res) => {
         const existingEmailUser = await User.findOne({ email });
         if (existingEmailUser) {
             console.warn(`[REGISTER] Email duplicado: ${email}`);
-            if (existingEmailUser.Isdeleted) {
-                return res
-                    .status(400)
-                    .json({
-                        message:
-                            "Este correo electrónico pertenece a un usuario eliminado.",
-                    });
+            if (existingEmailUser.is_deleted) {
+                return res.status(400).json({
+                    message: "Este correo electrónico pertenece a un usuario eliminado.",
+                });
             }
-            return res
-                .status(409)
-                .json({ message: "El correo electrónico ya está en uso." });
+            return res.status(409).json({ message: "El correo electrónico ya está en uso." });
         }
 
         const existingUser = await User.findOne({ username });
         if (existingUser) {
-            console.warn(`[REGISTER] Username duplicado: ${username}`); 
-            if (existingUser.Isdeleted) {
-                return res
-                    .status(400)
-                    .json({
-                        message: "Este nombre de usuario pertenece a un usuario eliminado.",
-                    });
+            console.warn(`[REGISTER] Username duplicado: ${username}`);
+            if (existingUser.is_deleted) {
+                return res.status(400).json({
+                    message: "Este nombre de usuario pertenece a un usuario eliminado.",
+                });
             }
-            return res
-                .status(409)
-                .json({ message: "El nombre de usuario ya está en uso." });
+            return res.status(409).json({ message: "El nombre de usuario ya está en uso." });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const newUser = new User({ username, email, password: hashedPassword });
+        const newUser = new User({ full_name: full_name.trim(), username, email, password: hashedPassword });
         await newUser.save();
 
         console.info(`[REGISTER] Usuario creado: ${newUser._id} (${email})`);
@@ -164,7 +155,8 @@ export const resetPasswordController = async (req, res) => {
 export const getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
-      .select('-password -password_history -access_history -is_deleted -old_data');
+      .select('full_name email username birthdate phone_number country address social_accounts bio')
+      .lean(); // más rápido y limpio
 
     if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
 
@@ -179,8 +171,9 @@ export const getProfile = async (req, res) => {
 export const updateProfile = async (req, res) => {
   try {
     const {
-      first_name,
-      last_name,
+      full_name,
+      username,
+      email,
       phone_number,
       birthdate,
       country,
@@ -192,8 +185,9 @@ export const updateProfile = async (req, res) => {
     const updated = await User.findByIdAndUpdate(
       req.user._id,
       {
-        first_name,
-        last_name,
+        full_name,
+        username,
+        email,
         phone_number,
         birthdate,
         country,
@@ -202,11 +196,11 @@ export const updateProfile = async (req, res) => {
         social_accounts
       },
       { new: true, runValidators: true }
-    ).select('-password -password_history -access_history -is_deleted -old_data');
+    ).select('_id'); // solo necesitamos saber que existe
 
     if (!updated) return res.status(404).json({ message: 'Usuario no encontrado' });
 
-    return res.json({ user: updated });
+    return res.json({ message: 'Perfil actualizado con éxito' });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ message: 'Error al actualizar perfil' });

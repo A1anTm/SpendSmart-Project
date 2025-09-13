@@ -1,13 +1,10 @@
 import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema({
-    first_name: {
+    full_name: {
         type: String,
-        required: true 
-    },
-    last_name:  { 
-        type: String, 
-        required: true 
+        required: true,
+        trim: true
     },
     username:   { 
         type: String, 
@@ -20,6 +17,14 @@ const userSchema = new mongoose.Schema({
         required: true, 
         unique: true, 
         index: true 
+    },
+    resetPasswordToken: {
+        type: String,
+        default: null,
+    },
+    resetPasswordExpires: {
+        type: Date,
+        default: null,
     },
     password:   { 
         type: String, 

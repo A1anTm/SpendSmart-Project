@@ -1,5 +1,5 @@
-import Transaction from "../models/Transaction.js";
-import Category from "../models/Category.js";
+import Transaction from "../models/transactionsModel.js";
+import Category from "../models/categoryModel.js";
 import mongoose from "mongoose";
 
 /* ---------- HELPERS ---------- */
