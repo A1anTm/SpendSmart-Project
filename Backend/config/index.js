@@ -33,8 +33,8 @@ app.use(express.json());
 app.use("/Users", userRoutes)
 app.use("/Transactions", transactionRoutes)
 app.use("/Budgets", budgetRoutes)
-app.use("/SavingsGoals", savingsGoalRoutes)
 app.use("/Summary", summaryRoutes)
+app.use("/SavingsGoals", savingsGoalRoutes)
 
 
 
