@@ -38,11 +38,13 @@ app.use("/Summary", summaryRoutes)
 
 
 
-try {
-    mongoose.connect(process.env.DATABASE_URL);
-} catch (error) {
-    
-}
+mongoose.connect(process.env.DATABASE_URL)
+.then(() => console.log('Conectado a MongoDB'))
+.catch(err => {
+    console.error('Error conectando a MongoDB', err);
+    process.exit(1);
+});
+
 
 
 app.listen(port, () => {
