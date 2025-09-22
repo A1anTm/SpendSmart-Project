@@ -43,7 +43,7 @@ export const registerUser = async (req, res) => {
 
         console.info(`[REGISTER] Usuario creado: ${newUser._id} (${email})`);
 
-        res.status(201).json(newUser);
+        res.status(200).json({ message: 'Usuario creado exitosamente.' });
     } catch (error) {
         console.error("[REGISTER] Error interno:", error);
         res.status(500).json({ message: error.message });
@@ -63,7 +63,7 @@ export const loginUser = async (req, res) => {
             return res.status(404).json({ email: 'Email incorrecto' });
         }
 
-        if (user.Isdeleted) {
+        if (user.is_deleted) {
             console.warn(`[LOGIN] Usuario eliminado intentó acceder: ${email}`);
             return res.status(400).json({ message: 'Este usuario ha sido eliminado y no puede iniciar sesión.' });
         }
@@ -76,7 +76,7 @@ export const loginUser = async (req, res) => {
 
         const token = generatetoken(user);
         console.info(`[LOGIN] Login exitoso: ${email} (id: ${user._id})`);
-        return res.status(200).json({ user: { _id: user._id, email: user.email, username: user.username }, token });
+        return res.status(200).json({ message: 'Usuario logueado exitosamente.', token });
     } catch (error) {
         console.error('[LOGIN] Error interno:', error);
         return res.status(500).json({ name: error.name, error: error.message });
@@ -224,7 +224,7 @@ export const changePassword = async (req, res) => {
 
     // Verificar que no repita contraseñas anteriores
     const repeated = await Promise.all(
-      user.password_history.map(async (ph) => await bcrypt.compare(newPassword, ph.password))
+      user.password_history.map(async (ph) => bcrypt.compare(newPassword, ph.password))
     );
     if (repeated.some(Boolean)) {
       return res.status(409).json({ message: 'No puedes reutilizar una contraseña anterior' });
@@ -234,7 +234,7 @@ export const changePassword = async (req, res) => {
     user.password_history.push({ password: user.password, changed_in: new Date() });
 
     // Actualizar contraseña
-    user.password = await bcrypt.hash(newPassword, 12);
+    user.password = await bcrypt.hash(newPassword, 10);
     await user.save();
 
     return res.json({ message: 'Contraseña actualizada con éxito' });

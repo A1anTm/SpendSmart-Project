@@ -18,11 +18,6 @@ export const createTransaction = async (req, res) => {
       const cat = await Category.findById(category_id);
       if (!cat)
         return res.status(404).json({ message: 'Categoría no encontrada' });
-
-      if (!['ambos', type].includes(cat.appliesTo))
-        return res.status(400).json({
-          message: `La categoría "${cat.name}" no está permitida para ${type}s`
-        });
     }
 
     const newTx = await Transaction.create({
@@ -30,7 +25,7 @@ export const createTransaction = async (req, res) => {
       type,
       amount,
       date,
-      category_id: category_id || null,
+      category_id: category_id,
       description: description || null
     });
 
