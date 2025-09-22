@@ -34,7 +34,7 @@ export const createTransaction = async (req, res) => {
       description: description || null
     });
 
-    return res.status(201).json({ transaction: newTx });
+    return res.status(201).json({ message: 'Transacción creada exitosamente' });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: 'Error al crear transacción' });
@@ -42,23 +42,43 @@ export const createTransaction = async (req, res) => {
 };
 /* ---------- 2. ACTUALIZAR TRANSACCIÓN ---------- */
 export const updateTransaction = async (req, res) => {
-try {
+  try {
     const { id } = req.params;
     const updates = req.body;
+    const userId = req.user._id;
 
-    const tx = await Transaction.findOneAndUpdate(
-    { _id: id, user_id: req.user._id },
-    updates,
-    { new: true, runValidators: true }
-    );
-    if (!tx)
-    return res.status(404).json({ message: "Transacción no encontrada" });
+    // 1. Buscar la transacción actual
+    const currentTx = await Transaction.findOne({ _id: id, user_id: userId });
+    if (!currentTx)
+      return res.status(404).json({ message: 'Transacción no encontrada' });
 
-    return res.json({ transaction: tx });
-} catch (err) {
+    // 2. Si viene category_id, validar que exista y sea compatible con el tipo
+    if (updates.category_id) {
+      const cat = await Category.findById(updates.category_id);
+      if (!cat)
+        return res.status(404).json({ message: 'Categoría no encontrada' });
+
+      // Tipo que quedará después del update (el enviado o el actual)
+      const finalType = updates.type || currentTx.type;
+
+      if (!['ambos', finalType].includes(cat.appliesTo))
+        return res.status(400).json({
+          message: `La categoría "${cat.name}" no está permitida para ${finalType}s`
+        });
+    }
+
+    // 3. Aplicar cambios
+    const updatedTx = await Transaction.findOneAndUpdate(
+      { _id: id, user_id: userId },
+      updates,
+      { new: true, runValidators: true }
+    ).populate('category_id', 'name');
+
+    return res.status(201).json({ message: 'Acutalización realizada exitosamente' });
+  } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: "Error al actualizar transacción" });
-}
+    return res.status(500).json({ message: 'Error al actualizar transacción' });
+  }
 };
 
 /* ---------- 3. LISTAR TRANSACCIONES DEL USUARIO ---------- */
@@ -112,59 +132,96 @@ try {
 }
 };
 
-/* ---------- 5. RESUMEN POR CATEGORÍA Y MES ---------- */
-export const getSummaryByCategory = async (req, res) => {
-try {
-    const { year, month } = req.query; // ?year=2025&month=9
-    if (!year || !month)
-    return res.status(400).json({ message: "Faltan year y/o month" });
+/* ---------- 5. LISTAR TRANSACCIONES POR FILTROS ---------- */
 
-    const start = new Date(year, month - 1, 1);
-    const end = new Date(year, month, 1);
+export const getTransactionsByFilter = async (req, res) => {
+  try {
+    const {
+      type,
+      categoryName,
+      startDate,
+      endDate,
+      page = 1,
+      limit = 20
+    } = req.body;
 
+    const userId = req.user._id;
+    const skip = (page - 1) * limit;
+
+    // Filtros base
+    const match = { user_id: new mongoose.Types.ObjectId(userId) };
+    if (type) match.type = type;
+    if (startDate || endDate) {
+      match.date = {};
+      if (startDate) match.date.$gte = new Date(startDate);
+      if (endDate) match.date.$lte = new Date(endDate);
+    }
+
+    // Pipeline
     const pipeline = [
-    {
-        $match: {
-        user_id: new mongoose.Types.ObjectId(req.user._id),
-        date: { $gte: start, $lt: end },
-        },
-    },
-    {
-        $group: {
-        _id: { category: "$category_id", type: "$type" },
-        total: { $sum: "$amount" },
-        },
-    },
-    {
+      { $match: match },
+      {
         $lookup: {
-        from: "categories",
-        localField: "_id.category",
-        foreignField: "_id",
-        as: "cat",
-        },
-    },
-    { $unwind: { path: "$cat", preserveNullAndEmptyArrays: true } },
-    {
+          from: 'categories',
+          localField: 'category_id',
+          foreignField: '_id',
+          as: 'cat'
+        }
+      },
+      { $unwind: { path: '$cat', preserveNullAndEmptyArrays: true } },
+
+      // Filtro opcional por nombre de categoría
+      ...(categoryName ? [{
+        $match: { 'cat.name': { $regex: categoryName, $options: 'i' } }
+      }] : []),
+
+      // Orden descendente por fecha
+      { $sort: { date: -1 } },
+
+      // Paginación
+      { $skip: skip },
+      { $limit: Number(limit) },
+
+      // Proyección final
+      {
         $project: {
-        category: { $ifNull: ["$cat.name", "Sin categoría"] },
-        type: "$_id.type",
-        total: { $toDouble: "$total" },
-        },
-    },
+          _id: 1,
+          type: 1,
+          amount: { $toDouble: '$amount' },
+          date: 1,
+          description: 1,
+          category: { $ifNull: ['$cat.name', 'Sin categoría'] },
+          createdAt: 1
+        }
+      }
     ];
 
-    const raw = await Transaction.aggregate(pipeline);
-    // Formatear salida
-    const grouped = {};
-    raw.forEach((row) => {
-    const key = row.category;
-    if (!grouped[key]) grouped[key] = { ingreso: 0, gasto: 0 };
-    grouped[key][row.type] = row.total;
-    });
+    // Total de documentos (para paginación)
+    const countPipeline = [
+      { $match: match },
+      { $lookup: { from: 'categories', localField: 'category_id', foreignField: '_id', as: 'cat' } },
+      { $unwind: { path: '$cat', preserveNullAndEmptyArrays: true } },
+      ...(categoryName ? [{ $match: { 'cat.name': { $regex: categoryName, $options: 'i' } } }] : []),
+      { $count: 'total' }
+    ];
 
-    return res.json({ summary: grouped });
-} catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Error al obtener resumen" });
-}
+    const [data, totalResult] = await Promise.all([
+      Transaction.aggregate(pipeline),
+      Transaction.aggregate(countPipeline)
+    ]);
+
+    const total = totalResult[0]?.total || 0;
+
+    return res.json({
+      total,
+      page: Number(page),
+      limit: Number(limit),
+      transactions: data
+    });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ message: 'Error al obtener transacciones' });
+  }
 };
+
+

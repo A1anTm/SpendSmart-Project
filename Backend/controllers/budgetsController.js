@@ -6,22 +6,21 @@ const toNumber = d => parseFloat(d.toString());
 
 /* ---------- HELPERS ---------- */
 async function spentInPeriod(userId, catId, month) {
-    const [year, mm] = month.split('-').map(Number);
-    const start = new Date(year, mm - 1, 1);
-    const end = new Date(year, mm, 1);
-    const match = {
+const [year, mm] = month.split('-').map(Number);
+const start = new Date(year, mm - 1, 1);
+const end   = new Date(year, mm, 1);
+
+const agg = await Transaction.aggregate([
+    { $match: {
         user_id: new mongoose.Types.ObjectId(userId),
+        category_id: new mongoose.Types.ObjectId(catId),
         type: 'gasto',
         date: { $gte: start, $lt: end }
-    };
-    if (catId) {
-        match.category_id = new mongoose.Types.ObjectId(catId);
-    }
-    const agg = await Transaction.aggregate([
-        { $match: match },
-        { $group: { _id: null, total: { $sum: '$amount' } } }
-    ]);
-    return agg.length ? toNumber(agg[0].total) : 0;
+    }},
+    { $group: { _id: null, total: { $sum: { $toDouble: '$amount' } } } }
+]);
+
+return agg.length ? agg[0].total : 0;
 }
 
 /* ---------- 1. CREAR PRESUPUESTO ---------- */
@@ -83,34 +82,42 @@ export const updateBudget = async (req, res) => {
 
 /* ---------- 3. LISTAR CON RESUMEN ---------- */
 export const listBudgets = async (req, res) => {
-    try {
-        const { month } = req.query; // ?month=2025-09
-        const match = { user_id: req.user._id };
-        if (month) match.month = month;
-        const budgets = await Budget.find(match)
-            .populate('category_id', 'name')
-            .lean();
-        const enriched = await Promise.all(
-            budgets.map(async b => {
-                const spent = await spentInPeriod(req.user._id, b.category_id._id, b.month);
-                const limitNum = toNumber(b.limit);
-                const avail = limitNum - spent;
-                const percent = limitNum ? ((spent / limitNum) * 100).toFixed(1) : 0;
-                return {
-                    ...b,
-                    spent,
-                    limit: limitNum,
-                    available: avail,
-                    percentUsed: parseFloat(percent),
-                    alert: b.isActive && b.threshold <= percent
-                };
-            })
-        );
-        return res.json({ budgets: enriched });
-    } catch (e) {
-        console.error(e);
-        return res.status(500).json({ message: 'Error al listar presupuestos' });
-    }
+try {
+    const { month } = req.query; // ?month=2025-09
+    const match = { user_id: req.user._id, isActive: true };
+    if (month) match.month = month;
+
+    const budgets = await Budget.find(match)
+    .populate('category_id', 'name')
+    .lean();
+
+    const enriched = await Promise.all(
+    budgets.map(async b => {
+        const spent = await spentInPeriod(req.user._id, b.category_id._id, b.month);
+        const limitNum = toNumber(b.limit);
+        const avail = limitNum - spent;
+        const percent = limitNum ? ((spent / limitNum) * 100).toFixed(1) : 0;
+
+        return {
+        _id: b._id,
+        category: b.category_id.name,
+        month: b.month,
+        limit: limitNum,
+        threshold: b.threshold,
+        isActive: b.isActive,
+        spent,
+        available: avail,
+        percentUsed: parseFloat(percent),
+        alert: b.isActive && b.threshold <= percent
+        };
+    })
+    );
+
+    return res.json({ budgets: enriched });
+} catch (e) {
+    console.error(e);
+    return res.status(500).json({ message: 'Error al listar presupuestos' });
+}
 };
 
 /* ---------- 4. ACTIVAR / DESACTIVAR ---------- */

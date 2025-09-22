@@ -4,7 +4,6 @@ import mongoose from 'mongoose';
 
 const toNumber = d => parseFloat(d.toString());
 
-/* ----------  RESUMEN MENSUAL  ---------- */
 export const getMonthlySummary = async (req, res) => {
   try {
     const { month } = req.query; // 2025-09
@@ -15,35 +14,35 @@ export const getMonthlySummary = async (req, res) => {
     const end   = new Date(year, mm, 1);
     const userId = req.user._id;
 
-    /* 1.  Ingresos / Gastos del mes */
+    /* 1.  Ingresos / Gastos del mes (convertimos a double en la suma) */
     const incomeAgg = await Transaction.aggregate([
-      { $match: { user_id: userId, type: 'ingreso', date: { $gte: start, $lt: end } } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+      { $match: { user_id: new mongoose.Types.ObjectId(userId), type: 'ingreso', date: { $gte: start, $lt: end } } },
+      { $group: { _id: null, total: { $sum: { $toDouble: '$amount' } } } }
     ]);
     const expenseAgg = await Transaction.aggregate([
-      { $match: { user_id: userId, type: 'gasto', date: { $gte: start, $lt: end } } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+      { $match: { user_id: new mongoose.Types.ObjectId(userId), type: 'gasto', date: { $gte: start, $lt: end } } },
+      { $group: { _id: null, total: { $sum: { $toDouble: '$amount' } } } }
     ]);
 
-    const monthlyIncome  = incomeAgg.length  ? toNumber(incomeAgg[0].total)  : 0;
-    const monthlyExpense = expenseAgg.length ? toNumber(expenseAgg[0].total) : 0;
-    const monthlySavings = monthlyIncome - monthlyExpense;
+    const monthlyIncome  = incomeAgg.length  ? incomeAgg[0].total  : 0;
+    const monthlyExpense = expenseAgg.length ? expenseAgg[0].total : 0;
+    const monthlySavings = monthlyIncome - monthlyExpense; // puede ser negativo
 
     /* 2.  Saldo total (acumulado) */
-    const totalIncome  = await Transaction.aggregate([
-      { $match: { user_id: userId, type: 'ingreso' } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+    const totalIncome = await Transaction.aggregate([
+      { $match: { user_id: new mongoose.Types.ObjectId(userId), type: 'ingreso' } },
+      { $group: { _id: null, total: { $sum: { $toDouble: '$amount' } } } }
     ]);
     const totalExpense = await Transaction.aggregate([
-      { $match: { user_id: userId, type: 'gasto' } },
-      { $group: { _id: null, total: { $sum: '$amount' } } }
+      { $match: { user_id: new mongoose.Types.ObjectId(userId), type: 'gasto' } },
+      { $group: { _id: null, total: { $sum: { $toDouble: '$amount' } } } }
     ]);
-    const totalBalance = (totalIncome.length  ? toNumber(totalIncome[0].total)  : 0) -
-                        (totalExpense.length ? toNumber(totalExpense[0].total) : 0);
+    const totalBalance = (totalIncome.length ? totalIncome[0].total : 0) -
+                        (totalExpense.length ? totalExpense[0].total : 0);
 
     /* 3.  Gastos por categoría (mes) */
     const byCategory = await Transaction.aggregate([
-      { $match: { user_id: userId, type: 'gasto', date: { $gte: start, $lt: end } } },
+      { $match: { user_id: new mongoose.Types.ObjectId(userId), type: 'gasto', date: { $gte: start, $lt: end } } },
       {
         $lookup: {
           from: 'categories',
@@ -56,27 +55,46 @@ export const getMonthlySummary = async (req, res) => {
       {
         $group: {
           _id: { id: '$category_id', name: { $ifNull: ['$cat.name', 'Sin categoría'] } },
-          total: { $sum: '$amount' },
+          total: { $sum: { $toDouble: '$amount' } },
           count: { $sum: 1 }
         }
       },
-      { $project: { _id: 0, category: '$_id.name', total: { $toDouble: '$total' }, count: 1 } },
+      { $project: { _id: 0, category: '$_id.name', total: 1, count: 1 } },
       { $sort: { total: -1 } }
     ]);
 
-    /* 4.  Actividad reciente (últimas 10 transacciones) */
-    const recent = await Transaction.find({ user_id: userId })
-      .populate('category_id', 'name')
-      .sort({ created_at: -1 })
-      .limit(10)
-      .lean();
+    /* 4.  Actividad reciente (últimas 10) */
+      const recent = await Transaction.aggregate([
+    { $match: { user_id: new mongoose.Types.ObjectId(userId) } },
+    { $sort: { created_at: -1 } },
+    { $limit: 10 },
+    {
+      $lookup: {
+        from: 'categories',
+        localField: 'category_id',
+        foreignField: '_id',
+        as: 'cat'
+      }
+    },
+    { $unwind: { path: '$cat', preserveNullAndEmptyArrays: true } },
+    {
+      $project: {
+        _id: 1,
+        type: 1,
+        amount: { $toDouble: '$amount' },
+        name: { $ifNull: ['$cat.name', 'Sin categoría'] },
+        createdAt: '$created_at',
+        updatedAt: '$updated_at'
+      }
+    }
+  ]);
 
-    /* 5.  Ahorro total en metas (opcional) */
+    /* 5.  Ahorro total en metas */
     const savedInGoals = await SavingsGoal.aggregate([
-      { $match: { user_id: userId, isDeleted: false } },
-      { $group: { _id: null, total: { $sum: '$current_amount' } } }
+      { $match: { user_id: new mongoose.Types.ObjectId(userId), isDeleted: false } },
+      { $group: { _id: null, total: { $sum: { $toDouble: '$current_amount' } } } }
     ]);
-    const totalSaved = savedInGoals.length ? toNumber(savedInGoals[0].total) : 0;
+    const totalSaved = savedInGoals.length ? savedInGoals[0].total : 0;
 
     return res.json({
       totalBalance,
