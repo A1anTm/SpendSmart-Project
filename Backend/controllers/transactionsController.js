@@ -76,41 +76,8 @@ export const updateTransaction = async (req, res) => {
   }
 };
 
-/* ---------- 3. LISTAR TRANSACCIONES DEL USUARIO ---------- */
-export const getUserTransactions = async (req, res) => {
-try {
-    const {
-    page = 1,
-    limit = 20,
-    type,
-    category_id,
-    startDate,
-    endDate,
-    } = req.query;
-    const filters = { user_id: req.user._id };
-    if (type) filters.type = type;
-    if (category_id) filters.category_id = category_id;
-    if (startDate || endDate) {
-    filters.date = {};
-    if (startDate) filters.date.$gte = new Date(startDate);
-    if (endDate) filters.date.$lte = new Date(endDate);
-    }
 
-    const txs = await Transaction.find(filters)
-    .populate("category_id", "name")
-    .sort({ date: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
-
-    const total = await Transaction.countDocuments(filters);
-    return res.json({ total, page, transactions: txs });
-} catch (err) {
-    console.error(err);
-    return res.status(500).json({ message: "Error al obtener transacciones" });
-}
-};
-
-/* ---------- 4. ELIMINAR TRANSACCIÓN ---------- */
+/* ---------- 3. ELIMINAR TRANSACCIÓN ---------- */
 export const deleteTransaction = async (req, res) => {
 try {
     const { id } = req.params;
@@ -127,7 +94,7 @@ try {
 }
 };
 
-/* ---------- 5. LISTAR TRANSACCIONES POR FILTROS ---------- */
+/* ---------- 4. LISTAR TRANSACCIONES POR FILTROS ---------- */
 
 export const getTransactionsByFilter = async (req, res) => {
   try {
@@ -144,7 +111,7 @@ export const getTransactionsByFilter = async (req, res) => {
     const skip = (page - 1) * limit;
 
     // Filtros base
-    const match = { user_id: new mongoose.Types.ObjectId(userId) };
+    const match = { user_id: mongoose.Types.ObjectId(userId) };
     if (type) match.type = type;
     if (startDate || endDate) {
       match.date = {};
