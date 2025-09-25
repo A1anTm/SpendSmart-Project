@@ -105,6 +105,7 @@ export const deleteSavingsGoal = async (req, res) => {
     }
 };
 
+/* ---------- 5. AGREGAR DINERO A META ---------- */
 
 export const addMoneyToGoal = async (req, res) => {
 try {
