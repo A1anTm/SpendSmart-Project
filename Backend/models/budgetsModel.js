@@ -30,7 +30,12 @@ category_id: {
   isActive: {            // soft-delete lógico
     type: Boolean,
     default: true
-}
+},
+  isDeleted: {        // soft-delete
+          type: Boolean,
+          default: false,
+          index: true
+      }
 }, { timestamps: true });
 
 // un usuario sólo puede tener UN presupuesto activo por categoría/mes

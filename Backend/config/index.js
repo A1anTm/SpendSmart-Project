@@ -16,10 +16,11 @@ import categoryRoutes from '../routes/categoryRoutes.js'
 config({path: './Config/.env'});
 
 const corsOption = {
-    origin: ["http://localhost:3002"], 
+    origin: ["http://localhost:3000"], 
     optionsSuccessStatus: 200, 
     methods: ["GET", "POST", "PUT","PATCH", "DELETE"], 
-    allowedHeaders: ["Content-Type", "Authorization"] 
+    allowedHeaders: ["Content-Type", "Authorization"] ,
+    credentials: true
 }
 
 
@@ -31,12 +32,12 @@ const port = process.env.PORT
 
 app.use(express.json());
 
-app.use("/Users", userRoutes)
-app.use("/Transactions", transactionRoutes)
-app.use("/Budgets", budgetRoutes)
-app.use("/Summary", summaryRoutes)
-app.use("/SavingsGoals", savingsGoalRoutes)
-app.use("/Categories", categoryRoutes)
+app.use("/api/users", userRoutes);
+app.use("/api/transactions", transactionRoutes);
+app.use("/api/budgets", budgetRoutes);
+app.use("/api/summary", summaryRoutes);
+app.use("/api/savings-goals", savingsGoalsRoutes); 
+app.use("/api/categories", categoryRoutes);
 
 
 

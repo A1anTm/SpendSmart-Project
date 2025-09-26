@@ -10,6 +10,5 @@ router.put('/:id', updateBudget);               // editar
 router.get('/', listBudgets);                   // listar + resumen
 router.patch('/:id/toggle', toggleBudget);      // activar/desactivar
 router.delete('/:id', deleteBudget);            // eliminar
-router.put('/alerts/config', updateAlertSettings); // config notis
 
 export default router;

@@ -25,66 +25,74 @@ return agg.length ? agg[0].total : 0;
 
 /* ---------- 1. CREAR PRESUPUESTO ---------- */
 export const createBudget = async (req, res) => {
-    try {
-        const { category_id, month, limit, threshold } = req.body;
-        // Verificar límite de 5 presupuestos activos
-        const activeCount = await Budget.countDocuments({
-            user_id: req.user._id,
-            isActive: true
-        });
-        if (activeCount >= 5) {
-            return res.status(409).json({
-                message: 'Solo puedes tener hasta 5 presupuestos activos simultáneamente.'
-            });
-        }
-        // Verificar duplicado
-        const exists = await Budget.findOne({
-            user_id: req.user._id,
-            category_id,
-            month,
-            isActive: true
-        });
-        if (exists) {
-            return res.status(409).json({
-                message: 'Ya existe un presupuesto activo para esa categoría y mes.'
-            });
-        }
-        const bud = await Budget.create({
-            user_id: req.user._id,
-            category_id,
-            month,
-            limit,
-            threshold
-        });
-        return res.status(201).json({ budget: bud });
-    } catch (e) {
-        console.error(e);
-        return res.status(500).json({ message: 'Error al crear presupuesto' });
+try {
+    const { category_id, month, limit, threshold } = req.body;
+
+    // Verificar límite de 5 presupuestos activos
+    const activeCount = await Budget.countDocuments({
+    user_id: req.user._id,
+    isActive: true,
+    isDeleted: false
+    });
+    if (activeCount >= 5) {
+    return res.status(409).json({
+        message: 'Solo puedes tener hasta 5 presupuestos activos simultáneamente.'
+    });
     }
+
+    // Verificar duplicado
+    const exists = await Budget.findOne({
+    user_id: req.user._id,
+    category_id,
+    month,
+    isActive: true,
+    isDeleted: false
+    });
+    if (exists) {
+    return res.status(409).json({
+        message: 'Ya existe un presupuesto activo para esa categoría y mes.'
+    });
+    }
+
+    const bud = await Budget.create({
+    user_id: req.user._id,
+    category_id,
+    month,
+    limit,
+    threshold
+    });
+
+    return res.status(201).json({ budget: bud });
+    } catch (e) {
+    console.error(e);
+    return res.status(500).json({ message: 'Error al crear presupuesto' });
+}
 };
 
 /* ---------- 2. ACTUALIZAR PRESUPUESTO ---------- */
 export const updateBudget = async (req, res) => {
     try {
-        const { id } = req.params;
-        const upd = await Budget.findOneAndUpdate(
-            { _id: id, user_id: req.user._id },
-            req.body,
-            { new: true, runValidators: true }
-        );
-        if (!upd) return res.status(404).json({ message: 'Presupuesto no encontrado' });
-        return res.json({ budget: upd });
+    const { id } = req.params;
+
+    const upd = await Budget.findOneAndUpdate(
+    { _id: id, user_id: req.user._id, isDeleted: false },
+    req.body,
+    { new: true, runValidators: true }
+    );
+
+    if (!upd) return res.status(404).json({ message: 'Presupuesto no encontrado' });
+    return res.json({ budget: upd });
     } catch (e) {
-        console.error(e);
-        return res.status(500).json({ message: 'Error al actualizar' });
-    }
+    console.error(e);
+    return res.status(500).json({ message: 'Error al actualizar' });
+}
 };
 
 /* ---------- 3. LISTAR CON RESUMEN ---------- */
 export const listBudgets = async (req, res) => {
-try {
+    try {
     const { month } = req.query; // ?month=2025-09
-    const match = { user_id: req.user._id, isActive: true };
+    const match = { user_id: req.user._id, isActive: true, isDeleted: false };
     if (month) match.month = month;
 
     const budgets = await Budget.find(match)
@@ -99,70 +107,72 @@ try {
         const percent = limitNum ? ((spent / limitNum) * 100).toFixed(1) : 0;
 
         return {
-        _id: b._id,
-        category: b.category_id.name,
-        month: b.month,
-        limit: limitNum,
-        threshold: b.threshold,
-        isActive: b.isActive,
-        spent,
-        available: avail,
-        percentUsed: parseFloat(percent),
-        alert: b.isActive && b.threshold <= percent
+            _id: b._id,
+            category: b.category_id.name,
+            month: b.month,
+            limit: limitNum,
+            threshold: b.threshold,
+            isActive: b.isActive,
+            spent,
+            available: avail,
+            percentUsed: parseFloat(percent),
+            alert: b.isActive && b.threshold <= percent
         };
-    })
+        })
     );
 
     return res.json({ budgets: enriched });
-} catch (e) {
+    } catch (e) {
     console.error(e);
     return res.status(500).json({ message: 'Error al listar presupuestos' });
-}
+    }
 };
 
 /* ---------- 4. ACTIVAR / DESACTIVAR ---------- */
 export const toggleBudget = async (req, res) => {
     try {
-        const { id } = req.params;
-        const bud = await Budget.findOne({ _id: id, user_id: req.user._id });
-        if (!bud) return res.status(404).json({ message: 'Presupuesto no encontrado' });
-        bud.isActive = !bud.isActive;
-        await bud.save();
-        return res.json({ budget: bud, message: bud.isActive ? 'Presupuesto activado' : 'Presupuesto desactivado' });
-    } catch (e) {
-        console.error(e);
-        return res.status(500).json({ message: 'Error al cambiar estado' });
-    }
+    const { id } = req.params;
+
+    const bud = await Budget.findOne({
+    _id: id,
+    user_id: req.user._id,
+    isDeleted: false
+    });
+
+    if (!bud) return res.status(404).json({ message: 'Presupuesto no encontrado' });
+
+    bud.isActive = !bud.isActive;
+    await bud.save();
+
+    return res.json({
+    budget: bud,
+    message: bud.isActive ? 'Presupuesto activado' : 'Presupuesto desactivado'
+    });
+} catch (e) {
+    console.error(e);
+    return res.status(500).json({ message: 'Error al cambiar estado' });
+}
 };
 
-/* ---------- 5. ELIMINAR (hard) ---------- */
+/* ---------- 5. ELIMINAR (soft-delete) ---------- */
 export const deleteBudget = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const del = await Budget.findOneAndDelete({ _id: id, user_id: req.user._id });
-        if (!del) return res.status(404).json({ message: 'Presupuesto no encontrado' });
-        return res.json({ message: 'Presupuesto eliminado' });
-    } catch (e) {
-        console.error(e);
-        return res.status(500).json({ message: 'Error al eliminar' });
-    }
+try {
+    const { id } = req.params;
+
+    const budget = await Budget.findOneAndUpdate(
+    { _id: id, user_id: req.user._id, isDeleted: false },
+    { isDeleted: true, isActive: false },
+    { new: true }
+    );
+
+    if (!budget)
+    return res.status(404).json({ message: 'Presupuesto no encontrado' });
+
+    return res.json({ message: 'Presupuesto eliminado' });
+} catch (e) {
+    console.error(e);
+    return res.status(500).json({ message: 'Error al eliminar' });
+}
 };
 
-/* ---------- 6. CONFIGURAR ALERTAS ---------- */
-export const updateAlertSettings = async (req, res) => {
-    try {
-        const { emailAlerts, weeklyReports, monthlyReports, thresholdEnabled } = req.body;
-        const user = req.user;
-        user.alertSettings = {
-            emailAlerts: emailAlerts ?? user.alertSettings.emailAlerts,
-            weeklyReports: weeklyReports ?? user.alertSettings.weeklyReports,
-            monthlyReports: monthlyReports ?? user.alertSettings.monthlyReports
-        };
-        if (typeof thresholdEnabled === 'boolean') user.thresholdEnabled = thresholdEnabled;
-        await user.save();
-        return res.json({ alertSettings: user.alertSettings, thresholdEnabled: user.thresholdEnabled });
-    } catch (e) {
-        console.error(e);
-        return res.status(500).json({ message: 'Error al guardar configuración' });
-    }
-};
+
