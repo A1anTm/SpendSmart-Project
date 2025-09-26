@@ -36,7 +36,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/budgets", budgetRoutes);
 app.use("/api/summary", summaryRoutes);
-app.use("/api/savings-goals", savingsGoalsRoutes); 
+app.use("/api/savings-goals", savingsGoalRoutes); 
 app.use("/api/categories", categoryRoutes);
 
 

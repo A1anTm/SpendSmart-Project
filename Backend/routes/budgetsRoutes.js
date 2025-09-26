@@ -1,5 +1,5 @@
 import express from 'express';
-import {createBudget, updateBudget, listBudgets, toggleBudget, deleteBudget, updateAlertSettings} from "../controllers/budgetsController.js";
+import {createBudget, updateBudget, listBudgets, toggleBudget, deleteBudget} from "../controllers/budgetsController.js";
 import { isAuth } from '../middlewares/auth.js';
 
 const router = express.Router();

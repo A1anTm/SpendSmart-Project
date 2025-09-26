@@ -40,30 +40,8 @@ export const getMonthlySummary = async (req, res) => {
     const totalBalance = (totalIncome.length ? totalIncome[0].total : 0) -
                         (totalExpense.length ? totalExpense[0].total : 0);
 
-    /* 3.  Gastos por categoría (mes) */
-    const byCategory = await Transaction.aggregate([
-      { $match: { user_id: new mongoose.Types.ObjectId(userId), type: 'gasto', date: { $gte: start, $lt: end } } },
-      {
-        $lookup: {
-          from: 'categories',
-          localField: 'category_id',
-          foreignField: '_id',
-          as: 'cat'
-        }
-      },
-      { $unwind: { path: '$cat', preserveNullAndEmptyArrays: true } },
-      {
-        $group: {
-          _id: { id: '$category_id', name: { $ifNull: ['$cat.name', 'Sin categoría'] } },
-          total: { $sum: { $toDouble: '$amount' } },
-          count: { $sum: 1 }
-        }
-      },
-      { $project: { _id: 0, category: '$_id.name', total: 1, count: 1 } },
-      { $sort: { total: -1 } }
-    ]);
 
-    /* 4.  Actividad reciente (últimas 10) */
+    /* 3.  Actividad reciente (últimas 10) */
       const recent = await Transaction.aggregate([
     { $match: { user_id: new mongoose.Types.ObjectId(userId) } },
     { $sort: { created_at: -1 } },
@@ -89,7 +67,7 @@ export const getMonthlySummary = async (req, res) => {
     }
   ]);
 
-    /* 5.  Ahorro total en metas */
+    /* 4.  Ahorro total en metas */
     const savedInGoals = await SavingsGoal.aggregate([
       { $match: { user_id: new mongoose.Types.ObjectId(userId), isDeleted: false } },
       { $group: { _id: null, total: { $sum: { $toDouble: '$current_amount' } } } }
@@ -102,7 +80,6 @@ export const getMonthlySummary = async (req, res) => {
       monthlyExpense,
       monthlySavings,
       totalSaved,
-      expensesByCategory: byCategory,
       recentTransactions: recent
     });
   } catch (e) {
