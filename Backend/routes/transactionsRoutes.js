@@ -9,6 +9,6 @@ router.use(isAuth); // todas necesitan autenticación
 router.post('/', isAuth, createTransaction);
 router.put('/:id', isAuth, updateTransaction);
 router.delete('/:id', deleteTransaction);
-router.get('/filter', isAuth, getTransactionsByFilter);
+router.post('/filter', isAuth, getTransactionsByFilter);
 
 export default router;  

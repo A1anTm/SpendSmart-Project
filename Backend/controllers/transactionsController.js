@@ -98,20 +98,12 @@ try {
 
 export const getTransactionsByFilter = async (req, res) => {
   try {
-    const {
-      type,
-      categoryName,
-      startDate,
-      endDate,
-      page = 1,
-      limit = 20
-    } = req.body;
-
+    const { type, categoryName, startDate, endDate, page = 1, limit = 20 } = req.body;
     const userId = req.user._id;
     const skip = (page - 1) * limit;
 
-    // Filtros base
-    const match = { user_id: mongoose.Types.ObjectId(userId) };
+    // Filtro base
+    const match = { user_id: new mongoose.Types.ObjectId(userId) };
     if (type) match.type = type;
     if (startDate || endDate) {
       match.date = {};
@@ -119,7 +111,7 @@ export const getTransactionsByFilter = async (req, res) => {
       if (endDate) match.date.$lte = new Date(endDate);
     }
 
-    // Pipeline
+    // Pipeline de agregación
     const pipeline = [
       { $match: match },
       {
@@ -132,19 +124,14 @@ export const getTransactionsByFilter = async (req, res) => {
       },
       { $unwind: { path: '$cat', preserveNullAndEmptyArrays: true } },
 
-      // Filtro opcional por nombre de categoría
+      // Filtro por nombre de categoría (solo si llega)
       ...(categoryName ? [{
         $match: { 'cat.name': { $regex: categoryName, $options: 'i' } }
       }] : []),
 
-      // Orden descendente por fecha
       { $sort: { date: -1 } },
-
-      // Paginación
       { $skip: skip },
       { $limit: Number(limit) },
-
-      // Proyección final
       {
         $project: {
           _id: 1,
@@ -153,17 +140,15 @@ export const getTransactionsByFilter = async (req, res) => {
           date: 1,
           description: 1,
           category: { $ifNull: ['$cat.name', 'Sin categoría'] },
+          category_id: '$category_id',
           createdAt: 1
         }
       }
     ];
 
-    // Total de documentos (para paginación)
+    // Total para paginación
     const countPipeline = [
-      { $match: match },
-      { $lookup: { from: 'categories', localField: 'category_id', foreignField: '_id', as: 'cat' } },
-      { $unwind: { path: '$cat', preserveNullAndEmptyArrays: true } },
-      ...(categoryName ? [{ $match: { 'cat.name': { $regex: categoryName, $options: 'i' } } }] : []),
+      ...pipeline.slice(0, -3), // quitamos skip, limit y project
       { $count: 'total' }
     ];
 
@@ -172,10 +157,8 @@ export const getTransactionsByFilter = async (req, res) => {
       Transaction.aggregate(countPipeline)
     ]);
 
-    const total = totalResult[0]?.total || 0;
-
     return res.json({
-      total,
+      total: totalResult[0]?.total || 0,
       page: Number(page),
       limit: Number(limit),
       transactions: data
@@ -185,5 +168,3 @@ export const getTransactionsByFilter = async (req, res) => {
     return res.status(500).json({ message: 'Error al obtener transacciones' });
   }
 };
-
-
