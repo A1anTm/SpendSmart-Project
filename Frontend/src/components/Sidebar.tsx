@@ -4,8 +4,8 @@ import { usePathname } from 'next/navigation';
 
     const items = [
     { label: 'Resumen', href: '/dashboard', icon: '📊' },
-    { label: 'Agregar Transacción', href: '/transactions/add', icon: '➕' },
-    { label: 'Control de Gastos', href: '/expenses', icon: '💳' },
+    { label: 'Agregar Transacción', href: '/transactions', icon: '➕' },
+    { label: 'Control de Gastos', href: '/budgets', icon: '💳' },
     { label: 'Metas de Ahorro', href: '/savings', icon: '🎯' },
     { label: 'Configuración de Perfil', href: '/profile', icon: '👤' },
     ];
