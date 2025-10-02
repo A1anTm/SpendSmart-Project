@@ -4,7 +4,6 @@ import { config } from 'dotenv';
 config({ path: './Config/.env' });
 
 const categories = [
-  /* gastos */
   { name: 'Alimentos', appliesTo: 'gasto' },
   { name: 'Entretenimiento', appliesTo: 'gasto' },
   { name: 'Comida Fuera', appliesTo: 'gasto' },
@@ -13,7 +12,6 @@ const categories = [
   { name: 'Salud', appliesTo: 'gasto' },
   { name: 'Educación', appliesTo: 'gasto' },
   { name: 'Otros', appliesTo: 'gasto' },
-  /* ingresos */
   { name: 'Salario', appliesTo: 'ingreso' },
   { name: 'Freelance', appliesTo: 'ingreso' },
   { name: 'Inversiones', appliesTo: 'ingreso' },
@@ -24,7 +22,7 @@ const categories = [
 (async () => {
   try {
     await mongoose.connect(process.env.DATABASE_URL);
-    await Category.deleteMany();          // limpia (opcional)
+    await Category.deleteMany();         
     await Category.insertMany(categories);
     console.log('✅ Categorías insertadas');
     process.exit(0);

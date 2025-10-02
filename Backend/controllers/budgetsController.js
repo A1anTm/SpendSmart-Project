@@ -28,7 +28,6 @@ export const createBudget = async (req, res) => {
 try {
     const { category_id, month, limit, threshold } = req.body;
 
-    // Verificar límite de 5 presupuestos activos
     const activeCount = await Budget.countDocuments({
     user_id: req.user._id,
     isActive: true,
@@ -40,7 +39,6 @@ try {
     });
     }
 
-    // Verificar duplicado
     const exists = await Budget.findOne({
     user_id: req.user._id,
     category_id,
@@ -91,7 +89,7 @@ export const updateBudget = async (req, res) => {
 /* ---------- 3. LISTAR CON RESUMEN ---------- */
 export const listBudgets = async (req, res) => {
     try {
-    const { month } = req.query; // ?month=2025-09
+    const { month } = req.query; 
     const match = { user_id: req.user._id, isActive: true, isDeleted: false };
     if (month) match.month = month;
 

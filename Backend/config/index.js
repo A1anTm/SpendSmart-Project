@@ -2,8 +2,6 @@ import express, { json } from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import {config} from 'dotenv';
-
-//Rutas
 import userRoutes  from '../routes/userRoutes.js'
 import transactionRoutes from '../routes/transactionsRoutes.js'
 import budgetRoutes from '../routes/budgetsRoutes.js'

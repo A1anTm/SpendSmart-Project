@@ -2,9 +2,6 @@ import Transaction from "../models/transactionsModel.js";
 import Category from "../models/categoryModel.js";
 import mongoose from "mongoose";
 
-/* ---------- HELPERS ---------- */
-const toNumber = (decimal128) => parseFloat(decimal128.toString());
-
 /* ---------- 1. CREAR TRANSACCIÓN ---------- */
 export const createTransaction = async (req, res) => {
   try {
@@ -13,7 +10,6 @@ export const createTransaction = async (req, res) => {
     if (!['ingreso', 'gasto'].includes(type))
       return res.status(400).json({ message: 'Tipo debe ser ingreso o gasto' });
 
-    // Si viene categoría, validar que exista y sea compatible
     if (category_id) {
       const cat = await Category.findById(category_id);
       if (!cat)
@@ -35,6 +31,8 @@ export const createTransaction = async (req, res) => {
     return res.status(500).json({ message: 'Error al crear transacción' });
   }
 };
+
+
 /* ---------- 2. ACTUALIZAR TRANSACCIÓN ---------- */
 export const updateTransaction = async (req, res) => {
   try {
@@ -42,27 +40,23 @@ export const updateTransaction = async (req, res) => {
     const updates = req.body;
     const userId = req.user._id;
 
-    // 1. Buscar la transacción actual
     const currentTx = await Transaction.findOne({ _id: id, user_id: userId });
     if (!currentTx)
       return res.status(404).json({ message: 'Transacción no encontrada' });
 
-    // 2. Si viene category_id, validar que exista y sea compatible con el tipo
     if (updates.category_id) {
       const cat = await Category.findById(updates.category_id);
       if (!cat)
         return res.status(404).json({ message: 'Categoría no encontrada' });
 
-      // Tipo que quedará después del update (el enviado o el actual)
       const finalType = updates.type || currentTx.type;
 
-      if (!['ambos', finalType].includes(cat.appliesTo))
+      if (![finalType].includes(cat.appliesTo))
         return res.status(400).json({
           message: `La categoría "${cat.name}" no está permitida para ${finalType}s`
         });
     }
 
-    // 3. Aplicar cambios
     const updatedTx = await Transaction.findOneAndUpdate(
       { _id: id, user_id: userId },
       updates,
@@ -102,7 +96,6 @@ export const getTransactionsByFilter = async (req, res) => {
     const userId = req.user._id;
     const skip = (page - 1) * limit;
 
-    // Filtro base
     const match = { user_id: new mongoose.Types.ObjectId(userId) };
     if (type) match.type = type;
     if (startDate || endDate) {
@@ -111,7 +104,6 @@ export const getTransactionsByFilter = async (req, res) => {
       if (endDate) match.date.$lte = new Date(endDate);
     }
 
-    // Pipeline de agregación
     const pipeline = [
       { $match: match },
       {
@@ -124,7 +116,6 @@ export const getTransactionsByFilter = async (req, res) => {
       },
       { $unwind: { path: '$cat', preserveNullAndEmptyArrays: true } },
 
-      // Filtro por nombre de categoría (solo si llega)
       ...(categoryName ? [{
         $match: { 'cat.name': { $regex: categoryName, $options: 'i' } }
       }] : []),
@@ -140,15 +131,14 @@ export const getTransactionsByFilter = async (req, res) => {
           date: 1,
           description: 1,
           category: { $ifNull: ['$cat.name', 'Sin categoría'] },
-          category_id: '$category_id',
+          category_id: 1,
           createdAt: 1
         }
       }
     ];
 
-    // Total para paginación
     const countPipeline = [
-      ...pipeline.slice(0, -3), // quitamos skip, limit y project
+      ...pipeline.slice(0, -3), 
       { $count: 'total' }
     ];
 

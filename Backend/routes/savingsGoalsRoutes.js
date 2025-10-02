@@ -3,12 +3,11 @@ import { createSavingsGoal, getUserGoals, updateSavingsGoal, deleteSavingsGoal, 
 import { isAuth } from '../middlewares/auth.js';
 
 const router = express.Router();
-router.use(isAuth); // proteger rutas
 
-router.post('/', createSavingsGoal);        // crear
-router.get('/', getUserGoals);              // listar
-router.put('/:id', updateSavingsGoal);      // editar
-router.patch('/:id/add-money', addMoneyToGoal); // agregar dinero
-router.delete('/:id', deleteSavingsGoal);   // eliminar (soft)
+router.post('/', isAuth, createSavingsGoal);        
+router.get('/', isAuth, getUserGoals);              
+router.put('/:id', isAuth, updateSavingsGoal);      
+router.patch('/:id/add-money', isAuth, addMoneyToGoal); 
+router.delete('/:id', isAuth, deleteSavingsGoal);   
 
 export default router;

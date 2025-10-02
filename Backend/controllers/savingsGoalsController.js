@@ -106,39 +106,44 @@ export const deleteSavingsGoal = async (req, res) => {
 };
 
 /* ---------- 5. AGREGAR DINERO A META ---------- */
-
 export const addMoneyToGoal = async (req, res) => {
-try {
-    const { id } = req.params;
-    const { amount } = req.body;
-    if (!amount || amount <= 0)
+    try {
+        const { id } = req.params;
+        const raw = req.body.amount;
+
+        // --- validación de tipo y rango ---
+        const amount = Number(raw);
+        if (!Number.isFinite(amount) || amount <= 0)
         return res.status(400).json({ message: 'Monto inválido' });
-    const goal = await SavingsGoal.findOne({
+
+        // --- resto del flujo ---
+        const goal = await SavingsGoal.findOne({
         _id: id,
         user_id: req.user._id,
         isDeleted: false
-    });
-    if (!goal)
-    return res.status(404).json({ message: 'Meta no encontrada' });
-    const current = parseFloat(goal.current_amount.toString());
-    const target  = parseFloat(goal.target_amount.toString());
-    const toAdd   = parseFloat(amount);
-    // No sobrepasar el objetivo (opcional)
-    const newCurrent = Math.min(current + toAdd, target);
-    goal.current_amount = newCurrent;
-    await goal.save();
-    return res.json({
-    message: 'Dinero agregado',
-    goal: {
-        _id: goal._id,
-        name: goal.name,
-        current_amount: newCurrent,
-        target_amount: target,
-        completed: newCurrent >= target
+        });
+        if (!goal)
+        return res.status(404).json({ message: 'Meta no encontrada' });
+
+        const current = parseFloat(goal.current_amount.toString());
+        const target  = parseFloat(goal.target_amount.toString());
+        const newCurrent = Math.min(current + amount, target);
+
+        goal.current_amount = newCurrent;
+        await goal.save();
+
+        return res.json({
+        message: 'Dinero agregado',
+        goal: {
+            _id: goal._id,
+            name: goal.name,
+            current_amount: newCurrent,
+            target_amount: target,
+            completed: newCurrent >= target
+        }
+        });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ message: 'Error al abonar a la meta' });
     }
-    });
-} catch (e) {
-    console.error(e);
-    return res.status(500).json({ message: 'Error al abonar a la meta' });
-}
-};
+    };

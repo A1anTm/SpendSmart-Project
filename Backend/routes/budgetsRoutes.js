@@ -3,12 +3,11 @@ import {createBudget, updateBudget, listBudgets, toggleBudget, deleteBudget} fro
 import { isAuth } from '../middlewares/auth.js';
 
 const router = express.Router();
-router.use(isAuth);
 
-router.post('/', createBudget);                 // agregar
-router.put('/:id', updateBudget);               // editar
-router.get('/', listBudgets);                   // listar + resumen
-router.patch('/:id/toggle', toggleBudget);      // activar/desactivar
-router.delete('/:id', deleteBudget);            // eliminar
+router.post('/', isAuth, createBudget);                 
+router.put('/:id', isAuth, updateBudget);               
+router.get('/', isAuth, listBudgets);                   
+router.patch('/:id/toggle', isAuth, toggleBudget);      
+router.delete('/:id', isAuth, deleteBudget);            
 
 export default router;

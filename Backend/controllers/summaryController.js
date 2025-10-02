@@ -14,7 +14,6 @@ export const getMonthlySummary = async (req, res) => {
     const end   = new Date(year, mm, 1);
     const userId = req.user._id;
 
-    /* 1.  Ingresos / Gastos del mes (convertimos a double en la suma) */
     const incomeAgg = await Transaction.aggregate([
       { $match: { user_id: new mongoose.Types.ObjectId(userId), type: 'ingreso', date: { $gte: start, $lt: end } } },
       { $group: { _id: null, total: { $sum: { $toDouble: '$amount' } } } }
@@ -26,9 +25,8 @@ export const getMonthlySummary = async (req, res) => {
 
     const monthlyIncome  = incomeAgg.length  ? incomeAgg[0].total  : 0;
     const monthlyExpense = expenseAgg.length ? expenseAgg[0].total : 0;
-    const monthlySavings = monthlyIncome - monthlyExpense; // puede ser negativo
+    const monthlySavings = monthlyIncome - monthlyExpense; 
 
-    /* 2.  Saldo total (acumulado) */
     const totalIncome = await Transaction.aggregate([
       { $match: { user_id: new mongoose.Types.ObjectId(userId), type: 'ingreso' } },
       { $group: { _id: null, total: { $sum: { $toDouble: '$amount' } } } }
@@ -40,8 +38,6 @@ export const getMonthlySummary = async (req, res) => {
     const totalBalance = (totalIncome.length ? totalIncome[0].total : 0) -
                         (totalExpense.length ? totalExpense[0].total : 0);
 
-
-    /* 3.  Actividad reciente (últimas 10) */
       const recent = await Transaction.aggregate([
     { $match: { user_id: new mongoose.Types.ObjectId(userId) } },
     { $sort: { created_at: -1 } },
@@ -67,7 +63,6 @@ export const getMonthlySummary = async (req, res) => {
     }
   ]);
 
-    /* 4.  Ahorro total en metas */
     const savedInGoals = await SavingsGoal.aggregate([
       { $match: { user_id: new mongoose.Types.ObjectId(userId), isDeleted: false } },
       { $group: { _id: null, total: { $sum: { $toDouble: '$current_amount' } } } }

@@ -9,7 +9,7 @@ dotenv.config();
 
 /* ---------- 1. REGISTER ---------- */
 export const registerUser = async (req, res) => {
-    const { full_name, username, email, password } = req.body;
+    const { full_name, email, password } = req.body;
 
     console.info(`[REGISTER] Intentando registrar usuario: ${email}`);
 
@@ -25,20 +25,9 @@ export const registerUser = async (req, res) => {
             return res.status(409).json({ message: "El correo electrónico ya está en uso." });
         }
 
-        const existingUser = await User.findOne({ username });
-        if (existingUser) {
-            console.warn(`[REGISTER] Username duplicado: ${username}`);
-            if (existingUser.is_deleted) {
-                return res.status(400).json({
-                    message: "Este nombre de usuario pertenece a un usuario eliminado.",
-                });
-            }
-            return res.status(409).json({ message: "El nombre de usuario ya está en uso." });
-        }
-
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const newUser = new User({ full_name: full_name.trim(), username, email, password: hashedPassword });
+        const newUser = new User({ full_name: full_name.trim(), email, password: hashedPassword });
         await newUser.save();
 
         console.info(`[REGISTER] Usuario creado: ${newUser._id} (${email})`);
@@ -155,7 +144,7 @@ export const resetPasswordController = async (req, res) => {
 export const getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
-      .select('full_name email username birthdate phone_number country address social_accounts bio')
+      .select('full_name email birthdate phone_number country address social_accounts bio')
       .lean(); // más rápido y limpio
 
     if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
@@ -172,7 +161,6 @@ export const updateProfile = async (req, res) => {
   try {
     const {
       full_name,
-      username,
       email,
       phone_number,
       birthdate,
@@ -186,7 +174,6 @@ export const updateProfile = async (req, res) => {
       req.user._id,
       {
         full_name,
-        username,
         email,
         phone_number,
         birthdate,
@@ -196,7 +183,7 @@ export const updateProfile = async (req, res) => {
         social_accounts
       },
       { new: true, runValidators: true }
-    ).select('_id'); // solo necesitamos saber que existe
+    );
 
     if (!updated) return res.status(404).json({ message: 'Usuario no encontrado' });
 
@@ -218,11 +205,9 @@ export const changePassword = async (req, res) => {
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
 
-    // Verificar contraseña actual
     const isMatch = await bcrypt.compare(currentPassword, user.password);
     if (!isMatch) return res.status(401).json({ message: 'Contraseña actual incorrecta' });
 
-    // Verificar que no repita contraseñas anteriores
     const repeated = await Promise.all(
       user.password_history.map(async (ph) => bcrypt.compare(newPassword, ph.password))
     );
@@ -230,10 +215,8 @@ export const changePassword = async (req, res) => {
       return res.status(409).json({ message: 'No puedes reutilizar una contraseña anterior' });
     }
 
-    // Guardar contraseña actual en historial
     user.password_history.push({ password: user.password, changed_in: new Date() });
 
-    // Actualizar contraseña
     user.password = await bcrypt.hash(newPassword, 10);
     await user.save();
 
