@@ -2,7 +2,12 @@ import Transaction from '../models/transactionsModel.js';
 import SavingsGoal from '../models/savingsGoalsModel.js';
 import mongoose from 'mongoose';
 
-const toNumber = d => parseFloat(d.toString());
+/**
+ * Meta de ahorro vacia
+ */
+const EMPTY_GOAL = {
+  name: 'Sin metas activas'
+};
 
 export const getMonthlySummary = async (req, res) => {
   try {
@@ -14,6 +19,10 @@ export const getMonthlySummary = async (req, res) => {
     const end   = new Date(year, mm, 1);
     const userId = req.user._id;
 
+    console.log('Mes consultado:', month);
+    console.log('Rango:', start, 'a', end);
+
+    /* 1. Ingresos / Gastos del mes */
     const incomeAgg = await Transaction.aggregate([
       { $match: { user_id: new mongoose.Types.ObjectId(userId), type: 'ingreso', date: { $gte: start, $lt: end } } },
       { $group: { _id: null, total: { $sum: { $toDouble: '$amount' } } } }
@@ -25,8 +34,9 @@ export const getMonthlySummary = async (req, res) => {
 
     const monthlyIncome  = incomeAgg.length  ? incomeAgg[0].total  : 0;
     const monthlyExpense = expenseAgg.length ? expenseAgg[0].total : 0;
-    const monthlySavings = monthlyIncome - monthlyExpense; 
+    const monthlySavings = monthlyIncome - monthlyExpense;
 
+    /* 2. Saldo total (acumulado) */
     const totalIncome = await Transaction.aggregate([
       { $match: { user_id: new mongoose.Types.ObjectId(userId), type: 'ingreso' } },
       { $group: { _id: null, total: { $sum: { $toDouble: '$amount' } } } }
@@ -38,36 +48,68 @@ export const getMonthlySummary = async (req, res) => {
     const totalBalance = (totalIncome.length ? totalIncome[0].total : 0) -
                         (totalExpense.length ? totalExpense[0].total : 0);
 
-      const recent = await Transaction.aggregate([
-    { $match: { user_id: new mongoose.Types.ObjectId(userId) } },
-    { $sort: { created_at: -1 } },
-    { $limit: 10 },
-    {
-      $lookup: {
-        from: 'categories',
-        localField: 'category_id',
-        foreignField: '_id',
-        as: 'cat'
+    /* 3. Últimas 10 transacciones */
+    const recent = await Transaction.aggregate([
+      { $match: { user_id: new mongoose.Types.ObjectId(userId) } },
+      { $sort: { created_at: -1 } },
+      { $limit: 10 },
+      {
+        $lookup: {
+          from: 'categories',
+          localField: 'category_id',
+          foreignField: '_id',
+          as: 'cat'
+        }
+      },
+      { $unwind: { path: '$cat', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 1,
+          type: 1,
+          amount: { $toDouble: '$amount' },
+          name: { $ifNull: ['$cat.name', 'Sin categoría'] },
+          createdAt: '$created_at',
+          updatedAt: '$updated_at'
+        }
       }
-    },
-    { $unwind: { path: '$cat', preserveNullAndEmptyArrays: true } },
-    {
-      $project: {
-        _id: 1,
-        type: 1,
-        amount: { $toDouble: '$amount' },
-        name: { $ifNull: ['$cat.name', 'Sin categoría'] },
-        createdAt: '$created_at',
-        updatedAt: '$updated_at'
-      }
-    }
-  ]);
+    ]);
 
+    /* 4. Total ahorrado en metas */
     const savedInGoals = await SavingsGoal.aggregate([
       { $match: { user_id: new mongoose.Types.ObjectId(userId), isDeleted: false } },
       { $group: { _id: null, total: { $sum: { $toDouble: '$current_amount' } } } }
     ]);
     const totalSaved = savedInGoals.length ? savedInGoals[0].total : 0;
+
+    /* 5. Meta más cercana a completarse */
+    const closestGoalAgg = await SavingsGoal.aggregate([
+      { $match: {
+          user_id: new mongoose.Types.ObjectId(userId),
+          isDeleted: false,
+          due_date: { $gte: new Date() }
+      }},
+      { $addFields: {
+          progress: {
+            $divide: [
+              { $toDouble: '$current_amount' },
+              { $toDouble: '$target_amount' }
+            ]
+          }
+      }},
+      { $sort: { progress: -1 } },
+      { $limit: 1 },
+      { $project: {
+          _id: 1,
+          name: 1,
+          description: 1,
+          target_amount: { $toDouble: '$target_amount' },
+          current_amount: { $toDouble: '$current_amount' },
+          progress: 1,
+          due_date: 1
+      }}
+    ]);
+
+    const closestGoal = closestGoalAgg.length ? closestGoalAgg[0] : EMPTY_GOAL;
 
     return res.json({
       totalBalance,
@@ -75,7 +117,8 @@ export const getMonthlySummary = async (req, res) => {
       monthlyExpense,
       monthlySavings,
       totalSaved,
-      recentTransactions: recent
+      recentTransactions: recent,
+      closestGoal
     });
   } catch (e) {
     console.error(e);

@@ -7,8 +7,7 @@ export const generatetoken = (user) => {
     const token = jwt.sign(
         {
             _id: user._id,
-            firstName: user.firstName,
-            lastName: user.lastName,
+            full_name: user.full_name,
             email: user.email,
         },
         process.env.JWT_SECRET,
@@ -22,28 +21,28 @@ export const generatetoken = (user) => {
 
 // Verificar autenticación
 export const isAuth = (req, res, next) => {
-    const token = req.headers.authorization?.split(' ')[1];
+    const authHeader = req.headers.authorization || '';
+    console.log('[isAuth] Authorization header:', JSON.stringify(authHeader));
 
-    if (!token) {
-        console.info('[isAuth] No se recibió token en los headers');
-        return res.status(401).json({ message: 'Token no enviado.' });
+    const token = authHeader.startsWith('Bearer ')
+        ? authHeader.split(' ')[1]?.trim()   // ← limpia espacios / saltos
+        : null;
+
+    if (!token || token.split('.').length !== 3) {   // ← debe tener 3 segmentos
+        console.info('[isAuth] Token mal formado o faltante');
+        return res.status(401).json({ message: 'Token inválido.' });
     }
 
     try {
         console.info('[isAuth] Verificando token...');
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-        console.log('Token decodificado:', decoded);
-
         req.user = decoded;
-        console.info('[isAuth] Token válido. Usuario autenticado:', decoded.email);
-
         next();
     } catch (error) {
-        console.error('[isAuth] Error al verificar el token:', error);
+        console.error('[isAuth] Error al verificar:', error.message);
         return res.status(401).json({ message: 'Token inválido o expirado.' });
     }
-};
+    };
 
 
 //generar token Email

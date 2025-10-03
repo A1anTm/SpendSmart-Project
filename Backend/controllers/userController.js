@@ -31,8 +31,8 @@ export const registerUser = async (req, res) => {
         await newUser.save();
 
         console.info(`[REGISTER] Usuario creado: ${newUser._id} (${email})`);
-
-        res.status(200).json({ message: 'Usuario creado exitosamente.' });
+        const token = generatetoken(newUser);
+        res.status(200).json({ message: 'Usuario creado exitosamente.', token });
     } catch (error) {
         console.error("[REGISTER] Error interno:", error);
         res.status(500).json({ message: error.message });

@@ -7,6 +7,6 @@ const router = express.Router();
 router.post('/', isAuth, createTransaction);
 router.put('/:id', isAuth, updateTransaction);
 router.delete('/:id', isAuth, deleteTransaction);
-router.get('/filter', isAuth, getTransactionsByFilter);
+router.post('/filter', isAuth, getTransactionsByFilter);
 
 export default router;  

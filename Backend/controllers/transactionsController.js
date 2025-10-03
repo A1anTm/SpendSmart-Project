@@ -20,7 +20,7 @@ export const createTransaction = async (req, res) => {
       user_id: req.user._id,
       type,
       amount,
-      date,
+      date: date || new Date(),
       category_id: category_id,
       description: description || null
     });
