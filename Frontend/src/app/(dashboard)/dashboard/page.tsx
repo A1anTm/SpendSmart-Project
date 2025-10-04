@@ -186,8 +186,6 @@ export default function DashboardPage() {
             );
         }
 
-        // Aquí ya sabemos que es una meta completa, así que podemos usar type assertion
-        // o nuestra función de guardia de tipo
         if (isCompleteGoal(goal)) {
             const percentage = Math.min((goal.current_amount / goal.target_amount) * 100, 100);
             const missing = goal.target_amount - goal.current_amount;
