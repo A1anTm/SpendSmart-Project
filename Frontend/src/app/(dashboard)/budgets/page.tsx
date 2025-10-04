@@ -29,7 +29,7 @@ export default function BudgetControlPage() {
   const [form, setForm] = useState({
     category_id: '',
     month: new Date().toISOString().substring(0, 7), // Formato YYYY-MM
-    limit: '500.00',
+    limit: '',
     threshold: '80',
   });
 
