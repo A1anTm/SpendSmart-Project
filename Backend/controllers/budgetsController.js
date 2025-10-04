@@ -87,47 +87,53 @@ export const updateBudget = async (req, res) => {
 };
 
 /* ---------- 3. LISTAR CON RESUMEN ---------- */
-    export const listBudgets = async (req, res) => {
-    try {
-        const budgets = await Budget
-        .find({ 
-            user_id: req.user._id, 
-            isActive: true, 
-            isDeleted: false 
-        })
-        .populate('category_id', 'name')
-        .sort({ createdAt: -1 })   // (opcional) los más nuevos primero
-        .limit(5)                  // máximo 5
-        .lean();
+export const listBudgets = async (req, res) => {
+  try {
+    const budgets = await Budget
+      .find({ 
+        user_id: req.user._id, 
+        isActive: true, 
+        isDeleted: false 
+      })
+      .populate('category_id', 'name')
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean();
 
-        const enriched = await Promise.all(
-        budgets.map(async b => {
-            const spent = await spentInPeriod(req.user._id, b.category_id._id, b.month);
-            const limitNum = toNumber(b.limit);
-            const avail  = limitNum - spent;
-            const percent = limitNum ? ((spent / limitNum) * 100).toFixed(1) : 0;
-
-            return {
-            _id: b._id,
-            category: b.category_id.name,
-            month: b.month,
-            limit: limitNum,
-            threshold: b.threshold,
-            isActive: b.isActive,
-            spent,
-            available: avail,
-            percentUsed: parseFloat(percent),
-            alert: b.isActive && b.threshold <= percent
-            };
-        })
-        );
-
-        return res.json({ budgets: enriched });
-    } catch (e) {
-        console.error(e);
-        return res.status(500).json({ message: 'Error al listar presupuestos' });
+    // --- validación de category_id ---
+    const invalid = budgets.find(b => !b.category_id);
+    if (invalid) {
+      return res.status(400).json({ message: 'ID de categoría inválido' });
     }
-    };
+
+    const enriched = await Promise.all(
+      budgets.map(async b => {
+        const spent = await spentInPeriod(req.user._id, b.category_id._id, b.month);
+        const limitNum = toNumber(b.limit);
+        const avail  = limitNum - spent;
+        const percent = limitNum ? ((spent / limitNum) * 100).toFixed(1) : 0;
+
+        return {
+          _id: b._id,
+          category: b.category_id.name,
+          month: b.month,
+          limit: limitNum,
+          threshold: b.threshold,
+          isActive: b.isActive,
+          spent,
+          available: avail,
+          percentUsed: parseFloat(percent),
+          alert: b.isActive && b.threshold <= percent
+        };
+      })
+    );
+
+    return res.json({ budgets: enriched });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ message: 'Error al listar presupuestos' });
+  }
+};
 
 /* ---------- 4. ACTIVAR / DESACTIVAR ---------- */
 export const toggleBudget = async (req, res) => {
