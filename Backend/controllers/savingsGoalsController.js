@@ -116,7 +116,25 @@ export const addMoneyToGoal = async (req, res) => {
         if (!Number.isFinite(amount) || amount <= 0)
         return res.status(400).json({ message: 'Monto inválido' });
 
-        // --- resto del flujo ---
+        // --- saldo disponible del usuario ---
+        const [totalIncome, totalExpense] = await Promise.all([
+        Transaction.aggregate([
+            { $match: { user_id: req.user._id, type: 'ingreso' } },
+            { $group: { _id: null, total: { $sum: { $toDouble: '$amount' } } } }
+        ]),
+        Transaction.aggregate([
+            { $match: { user_id: req.user._id, type: 'gasto' } },
+            { $group: { _id: null, total: { $sum: { $toDouble: '$amount' } } } }
+        ])
+        ]);
+
+        const totalBalance =
+        (totalIncome[0]?.total || 0) - (totalExpense[0]?.total || 0);
+
+        if (amount > totalBalance)
+        return res.status(400).json({ message: 'Saldo insuficiente' });
+
+        // --- buscamos la meta ---
         const goal = await SavingsGoal.findOne({
         _id: id,
         user_id: req.user._id,
@@ -127,10 +145,22 @@ export const addMoneyToGoal = async (req, res) => {
 
         const current = parseFloat(goal.current_amount.toString());
         const target  = parseFloat(goal.target_amount.toString());
-        const newCurrent = Math.min(current + amount, target);
 
+        // --- ajustamos solo hasta el tope de la meta ---
+        const newCurrent = Math.min(current + amount, target);
         goal.current_amount = newCurrent;
         await goal.save();
+
+        // (opcional) aquí podrías crear una transacción de tipo "gasto"
+        // para reflejar que ese dinero ya no está disponible:
+        await Transaction.create({
+        user_id: req.user._id,
+        type: 'gasto',
+        amount,
+        category_id: null,          // o una categoría especial "Ahorro"
+        description: `Abono a meta: ${goal.name}`,
+        date: new Date()
+        });
 
         return res.json({
         message: 'Dinero agregado',

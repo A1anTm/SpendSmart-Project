@@ -144,7 +144,7 @@ export const resetPasswordController = async (req, res) => {
 export const getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id)
-      .select('full_name email birthdate phone_number country address social_accounts bio')
+      .select('full_name birthdate phone_number country address social_accounts bio')
       .lean(); // más rápido y limpio
 
     if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
@@ -161,7 +161,6 @@ export const updateProfile = async (req, res) => {
   try {
     const {
       full_name,
-      email,
       phone_number,
       birthdate,
       country,
@@ -174,7 +173,6 @@ export const updateProfile = async (req, res) => {
       req.user._id,
       {
         full_name,
-        email,
         phone_number,
         birthdate,
         country,
